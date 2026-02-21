@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: apk-signer-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: apk_signer
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - apk-signer-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: apk-signer-backend
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DB: apk_signer
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root123456
+      UPLOAD_DIR: /data/uploads
+      SIGNED_DIR: /data/signed
+      KEYSTORE_DIR: /data/keystores
+      FILE_RETENTION_HOURS: 24
+      BASE_URL: http://localhost:8081
+    ports:
+      - "8080:8080"
+    volumes:
+      - upload_data:/data/uploads
+      - signed_data:/data/signed
+      - keystore_data:/data/keystores
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - apk-signer-net
+
+  frontend:
+    build:
+      context: ./frontend-admin
+      dockerfile: Dockerfile
+    container_name: apk-signer-frontend
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+    networks:
+      - apk-signer-net
+
+volumes:
+  mysql_data:
+  upload_data:
+  signed_data:
+  keystore_data:
+
+networks:
+  apk-signer-net:
+    driver: bridge

@@ -1,0 +1,38 @@
+# Java / Maven
+backend/target/
+backend/*.jar
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+
+# Node / Frontend
+frontend-admin/node_modules/
+frontend-admin/dist/
+frontend-admin/.vite/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Docker
+*.log
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Data
+/data/
