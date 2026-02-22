@@ -47,6 +47,50 @@ npm run dev
 
 本项目无需登录认证，直接访问即可使用。
 
+## 安全机制
+
+### 密码加密存储
+
+签名参数中的 `storePassword` 和 `keyPassword` 使用 AES-128-GCM 加密后存入数据库，不存储明文。
+
+- 加密密钥通过环境变量 `ENCRYPT_KEY` 注入（必须为 16 字节）
+- 启动时 `SecurityConfig` 校验密钥是否配置，未配置则阻止启动
+- 每次加密使用随机 IV，相同明文产生不同密文
+
+### API 响应脱敏
+
+- 密码字段统一返回 `******`，不回显明文
+- `filePath` / `signedFilePath` 等内部路径不返回给前端
+- 异常信息经过清洗，不暴露内部路径、命令输出等敏感信息
+
+### 环境变量配置
+
+在 `docker-compose.yml` 中已配置默认值，生产环境请替换：
+
+```bash
+# 自定义加密密钥（必须 16 字节）
+ENCRYPT_KEY=YourCustomKey16!  docker-compose up --build -d
+```
+
+## 自动化测试
+
+项目包含 25 个自动化测试用例，覆盖加密工具、文件服务和签名接口。
+
+### 运行方式
+
+```bash
+# 使用测试专用 Dockerfile（内含 H2 内存数据库，无需 MySQL）
+docker build -f backend/Dockerfile.test -t apk-signer-test backend/
+```
+
+### 测试覆盖
+
+| 测试类 | 用例数 | 覆盖范围 |
+|--------|--------|----------|
+| CryptoUtilTest | 8 | 加解密、随机IV、空值处理、Unicode、篡改检测、密钥校验、脱敏 |
+| FileStorageServiceTest | 7 | 上传、格式校验、空文件、路径生成、清理 |
+| SignControllerTest | 10 | 上传接口、参数校验、404、历史查询、密码脱敏、路径脱敏 |
+
 ## 如何测试
 
 ### 前置条件

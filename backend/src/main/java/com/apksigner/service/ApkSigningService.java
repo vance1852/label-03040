@@ -142,6 +142,7 @@ public class ApkSigningService {
                     "--v1-signing-enabled", "true",
                     "--v2-signing-enabled", String.valueOf(v2Enabled),
                     "--v3-signing-enabled", String.valueOf(v3Enabled),
+                    "--min-sdk-version", "21",
                     "--out", outputPath,
                     inputPath
             ));

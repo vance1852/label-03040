@@ -38,6 +38,7 @@ services:
       KEYSTORE_DIR: /data/keystores
       FILE_RETENTION_HOURS: 24
       BASE_URL: http://localhost:8081
+      ENCRYPT_KEY: ${ENCRYPT_KEY:-ApkS1gn3r@2026!!}
     ports:
       - "8080:8080"
     volumes:

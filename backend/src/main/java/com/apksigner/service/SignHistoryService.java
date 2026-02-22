@@ -5,12 +5,12 @@ import com.apksigner.dto.SignRequest;
 import com.apksigner.entity.SignHistory;
 import com.apksigner.exception.BizException;
 import com.apksigner.mapper.SignHistoryMapper;
+import com.apksigner.util.CryptoUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -39,7 +39,7 @@ public class SignHistoryService extends ServiceImpl<SignHistoryMapper, SignHisto
         save(history);
 
         log.info("文件上传记录创建: id={}, filename={}", history.getId(), file.getOriginalFilename());
-        return history;
+        return sanitizeForResponse(history);
     }
 
     public SignHistory executeSign(SignRequest request) {
@@ -55,12 +55,14 @@ public class SignHistoryService extends ServiceImpl<SignHistoryMapper, SignHisto
         history.setSignType(request.getSignType());
         history.setKeyAlias(request.getKeyAlias());
         history.setValidityYears(request.getValidityYears());
-        history.setStorePassword(request.getStorePassword());
-        history.setKeyPassword(request.getKeyPassword());
+        // 加密后存储密码
+        history.setStorePassword(CryptoUtil.encrypt(request.getStorePassword()));
+        history.setKeyPassword(CryptoUtil.encrypt(request.getKeyPassword()));
         updateById(history);
 
         try {
             String outputPath = fileStorageService.getSignedFilePath(history.getFilePath()).toString();
+            // 使用原始明文密码传给签名引擎
             apkSigningService.signApk(
                     history.getFilePath(), outputPath,
                     request.getSignType(), request.getKeyAlias(),
@@ -76,13 +78,14 @@ public class SignHistoryService extends ServiceImpl<SignHistoryMapper, SignHisto
             updateById(history);
 
             log.info("签名成功: id={}, type={}", history.getId(), request.getSignType());
-            return history;
+            return sanitizeForResponse(history);
         } catch (Exception e) {
+            // 内部详细错误只记日志，存储和返回给前端的是脱敏后的通用提示
+            log.error("签名失败: id={}, error={}", history.getId(), e.getMessage(), e);
             history.setStatus("FAILED");
-            history.setErrorMessage(e.getMessage());
+            history.setErrorMessage(sanitizeErrorMessage(e.getMessage()));
             updateById(history);
-            log.error("签名失败: id={}, error={}", history.getId(), e.getMessage());
-            throw e;
+            throw new BizException("签名处理失败，请检查文件格式或签名参数后重试");
         }
     }
 
@@ -117,6 +120,7 @@ public class SignHistoryService extends ServiceImpl<SignHistoryMapper, SignHisto
 
         log.info("批量签名完成: batchId={}, total={}, success={}",
                 batchId, results.size(), results.stream().filter(h -> "SUCCESS".equals(h.getStatus())).count());
+        results.forEach(this::sanitizeForResponse);
         return results;
     }
 
@@ -124,7 +128,9 @@ public class SignHistoryService extends ServiceImpl<SignHistoryMapper, SignHisto
         Page<SignHistory> pageParam = new Page<>(page, size);
         LambdaQueryWrapper<SignHistory> wrapper = new LambdaQueryWrapper<>();
         wrapper.orderByDesc(SignHistory::getCreatedAt);
-        return page(pageParam, wrapper);
+        Page<SignHistory> result = page(pageParam, wrapper);
+        result.getRecords().forEach(this::sanitizeForResponse);
+        return result;
     }
 
     public SignHistory getByDownloadCode(String code) {
@@ -134,7 +140,7 @@ public class SignHistoryService extends ServiceImpl<SignHistoryMapper, SignHisto
         if (history == null) {
             throw new BizException(404, "下载码无效");
         }
-        return history;
+        return sanitizeForResponse(history);
     }
 
     public void deleteHistory(Long id) {
@@ -154,5 +160,41 @@ public class SignHistoryService extends ServiceImpl<SignHistoryMapper, SignHisto
 
     public void batchDelete(List<Long> ids) {
         ids.forEach(this::deleteHistory);
+    }
+
+    public SignHistory getSanitizedById(Long id) {
+        SignHistory history = getById(id);
+        return sanitizeForResponse(history);
+    }
+
+    /**
+     * 脱敏处理：API 返回前清除/遮盖敏感字段
+     * - 密码字段用 mask 替代，不返回密文也不返回明文
+     * - 文件系统路径不暴露给前端
+     */
+    private SignHistory sanitizeForResponse(SignHistory history) {
+        if (history == null) return null;
+        history.setStorePassword(history.getStorePassword() != null ? "******" : null);
+        history.setKeyPassword(history.getKeyPassword() != null ? "******" : null);
+        history.setFilePath(null);
+        history.setSignedFilePath(null);
+        return history;
+    }
+
+    /**
+     * 错误信息脱敏：移除内部路径、命令输出等敏感信息
+     */
+    private String sanitizeErrorMessage(String rawMessage) {
+        if (rawMessage == null) return "未知错误";
+        // 移除文件路径信息
+        String sanitized = rawMessage.replaceAll("/data/[\\w/\\-_.]+", "[path]");
+        // 移除命令输出细节
+        sanitized = sanitized.replaceAll("Cannot run program.*", "签名工具执行异常");
+        sanitized = sanitized.replaceAll("error=\\d+,?\\s*", "");
+        // 截断过长的错误信息
+        if (sanitized.length() > 200) {
+            sanitized = sanitized.substring(0, 200) + "...";
+        }
+        return sanitized;
     }
 }

@@ -17,11 +17,12 @@ import AppFooter from './components/AppFooter.vue'
 </script>
 
 <style lang="scss">
-body {
+html, body {
   margin: 0;
   padding: 0;
   background-color: #f0f2f5;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  overflow-x: hidden;
 }
 
 .app-container {

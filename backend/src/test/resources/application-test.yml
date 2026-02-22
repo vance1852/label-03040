@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-h2.sql
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+apk-signer:
+  upload-dir: ${java.io.tmpdir}/apk-signer-test/uploads
+  signed-dir: ${java.io.tmpdir}/apk-signer-test/signed
+  keystore-dir: ${java.io.tmpdir}/apk-signer-test/keystores
+  file-retention-hours: 1
+  base-url: http://localhost:8080
+
+server:
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 200MB

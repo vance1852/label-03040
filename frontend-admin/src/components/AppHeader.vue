@@ -90,12 +90,27 @@ import { MobileOutlined, HomeOutlined, HistoryOutlined } from '@ant-design/icons
 }
 
 @media (max-width: 768px) {
-  .nav-item span {
-    display: none;
+  .header-content {
+    padding: 0 12px;
   }
+
+  .logo-text {
+    font-size: 15px !important;
+  }
+
+  .logo-icon {
+    font-size: 20px !important;
+  }
+
+  .nav-links {
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
   .nav-item {
-    padding: 8px 12px;
-    font-size: 18px;
+    padding: 6px 8px;
+    font-size: 12px;
+    gap: 4px;
   }
 }
 </style>

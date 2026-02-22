@@ -36,7 +36,7 @@ public class SignController {
 
     @GetMapping("/status/{id}")
     public R<SignHistory> getStatus(@PathVariable Long id) {
-        SignHistory history = signHistoryService.getById(id);
+        SignHistory history = signHistoryService.getSanitizedById(id);
         if (history == null) {
             return R.fail(404, "记录不存在");
         }
