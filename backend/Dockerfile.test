@@ -3,4 +3,6 @@ WORKDIR /build
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 COPY src ./src
-RUN ENCRYPT_KEY=TestKey!16Bytes! mvn test -B
+ENV ENCRYPT_KEY=TestKey!16Bytes!
+RUN mvn test -B
+CMD ["mvn", "test", "-B"]
